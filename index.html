@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>ASCII Art Tracer</title>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Fira+Code:wght@400;500&family=Source+Code+Pro:wght@400;500&family=JetBrains+Mono:wght@400;500&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <header>
+        <div class="logo">
+            <span class="logo-icon">[#]</span>
+            <h1>ASCII Art Tracer</h1>
+        </div>
+        <div class="header-actions">
+            <div class="theme-selector">
+                <label for="themeSelect">Theme</label>
+                <select id="themeSelect" class="theme-select">
+                    <option value="monodraw">Monodraw</option>
+                    <option value="terminal">Terminal</option>
+                    <option value="amber">Amber CRT</option>
+                    <option value="paper">Paper</option>
+                    <option value="blueprint">Blueprint</option>
+                    <option value="cyber">Cyber</option>
+                </select>
+            </div>
+            <button class="btn" id="openBtn" title="Open project">📂 Open</button>
+            <button class="btn" id="saveBtn" title="Save project">💾 Save</button>
+            <button class="btn" id="autoConvertBtn" title="Auto convert image to ASCII">⚡ Auto</button>
+            <button class="btn" id="clearBtn">Clear</button>
+            <button class="btn" id="exportBtn">Export</button>
+            <button class="btn btn-primary" id="copyBtn">Copy</button>
+        </div>
+    </header>
+
+    <div class="app-container">
+        <aside class="sidebar">
+            <!-- Image Upload -->
+            <div class="panel">
+                <div class="panel-title">Reference Image</div>
+                <div class="upload-zone" id="uploadZone">
+                    <div class="upload-icon">◻</div>
+                    <div class="upload-text">Drop image or tap here</div>
+                </div>
+                <input type="file" id="imageInput" accept="image/*" style="display: none;">
+                <input type="file" id="projectInput" accept=".ascii,.json" style="display: none;">
+            </div>
+
+            <!-- Image Settings -->
+            <div class="panel">
+                <div class="panel-title">Image Settings</div>
+                <div class="control-group">
+                    <div class="control-label">
+                        <span>Opacity</span>
+                        <span class="control-value" id="opacityValue">30%</span>
+                    </div>
+                    <input type="range" id="opacitySlider" min="5" max="80" value="30">
+                </div>
+                <div class="control-group">
+                    <div class="control-label">
+                        <span>Scale</span>
+                        <span class="control-value" id="scaleValue">100%</span>
+                    </div>
+                    <input type="range" id="scaleSlider" min="25" max="200" value="100">
+                </div>
+                <div class="control-group">
+                    <div class="control-label">
+                        <span>Position X</span>
+                        <span class="control-value" id="posXValue">0</span>
+                    </div>
+                    <input type="range" id="posXSlider" min="-200" max="200" value="0">
+                </div>
+                <div class="control-group">
+                    <div class="control-label">
+                        <span>Position Y</span>
+                        <span class="control-value" id="posYValue">0</span>
+                    </div>
+                    <input type="range" id="posYSlider" min="-200" max="200" value="0">
+                </div>
+                <button class="btn btn-small" id="resetImageBtn">Reset Position</button>
+            </div>
+
+            <!-- Grid Settings -->
+            <div class="panel">
+                <div class="panel-title">Grid Settings</div>
+                <div class="control-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="showGrid" checked>
+                        <span>Show grid</span>
+                    </label>
+                </div>
+                <div class="control-group">
+                    <div class="control-label">
+                        <span>Grid Opacity</span>
+                        <span class="control-value" id="gridOpacityValue">40%</span>
+                    </div>
+                    <input type="range" id="gridOpacitySlider" min="10" max="100" value="40">
+                </div>
+                <div class="control-group">
+                    <div class="control-label">
+                        <span>Grid Thickness</span>
+                        <span class="control-value" id="gridThicknessValue">1px</span>
+                    </div>
+                    <input type="range" id="gridThicknessSlider" min="0.5" max="3" value="1" step="0.5">
+                </div>
+            </div>
+
+            <!-- Canvas Size -->
+            <div class="panel">
+                <div class="panel-title">Canvas</div>
+                <div class="control-group">
+                    <div class="control-label">
+                        <span>Font</span>
+                    </div>
+                    <select id="fontSelect" class="select-input">
+                        <option value="'IBM Plex Mono', monospace">IBM Plex Mono</option>
+                        <option value="'Courier New', Courier, monospace">Courier New</option>
+                        <option value="'Consolas', monospace">Consolas</option>
+                        <option value="'Monaco', monospace">Monaco</option>
+                        <option value="'Fira Code', monospace">Fira Code</option>
+                        <option value="'Source Code Pro', monospace">Source Code Pro</option>
+                        <option value="'JetBrains Mono', monospace">JetBrains Mono</option>
+                        <option value="'Roboto Mono', monospace">Roboto Mono</option>
+                        <option value="'SF Mono', monospace">SF Mono</option>
+                        <option value="'Menlo', monospace">Menlo</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <div class="control-label">
+                        <span>Columns</span>
+                        <span class="control-value" id="colsValue">80</span>
+                    </div>
+                    <input type="range" id="colsSlider" min="20" max="150" value="80">
+                </div>
+                <div class="control-group">
+                    <div class="control-label">
+                        <span>Rows</span>
+                        <span class="control-value" id="rowsValue">40</span>
+                    </div>
+                    <input type="range" id="rowsSlider" min="10" max="80" value="40">
+                </div>
+                <div class="control-group">
+                    <div class="control-label">
+                        <span>Font Size</span>
+                        <span class="control-value" id="fontSizeValue">12px</span>
+                    </div>
+                    <input type="range" id="fontSizeSlider" min="6" max="24" value="12">
+                </div>
+            </div>
+
+            <!-- Auto Convert Settings -->
+            <div class="panel">
+                <div class="panel-title">Auto Convert</div>
+                <div class="control-group">
+                    <div class="control-label">
+                        <span>Charset</span>
+                    </div>
+                    <select id="charsetSelect" class="select-input">
+                        <option value="detailed">Detailed (@%#*+=-:. )</option>
+                        <option value="blocks">Blocks (█▓▒░ )</option>
+                        <option value="simple">Simple (#*+- )</option>
+                        <option value="dots">Dots (●◐○· )</option>
+                        <option value="custom">Custom</option>
+                    </select>
+                </div>
+                <div class="control-group" id="customCharsetGroup" style="display: none;">
+                    <input type="text" class="custom-char-input" id="customCharset" placeholder="e.g. @#$%&*" value="@%#*+=-:. ">
+                </div>
+                <div class="control-group">
+                    <div class="control-label">
+                        <span>Contrast</span>
+                        <span class="control-value" id="contrastValue">100%</span>
+                    </div>
+                    <input type="range" id="contrastSlider" min="50" max="200" value="100">
+                </div>
+                <div class="control-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="invertColors">
+                        <span>Invert colors</span>
+                    </label>
+                </div>
+                <button class="btn btn-convert" id="convertNowBtn">⚡ Convert Now</button>
+            </div>
+
+            <!-- Character Palette -->
+            <div class="panel">
+                <div class="panel-title">Characters</div>
+                <div class="char-palette" id="charPalette"></div>
+                <input type="text" class="custom-char-input" id="customChar" placeholder="Custom character" maxlength="1">
+            </div>
+        </aside>
+
+        <main class="editor-area" id="editorArea">
+            <div class="canvas-container" id="canvasContainer">
+                <div class="grid-overlay" id="gridOverlay"></div>
+                <img id="backgroundImage" src="" alt="" style="display: none;">
+                <div id="asciiCanvas"></div>
+            </div>
+
+            <div class="floating-toolbar">
+                <button class="tool-btn" id="undoBtn" title="Undo (Ctrl+Z)">↶</button>
+                <button class="tool-btn" id="redoBtn" title="Redo (Ctrl+Y)">↷</button>
+                <div class="toolbar-divider"></div>
+                <button class="tool-btn active" id="drawTool" title="Draw (D)">✎</button>
+                <button class="tool-btn" id="eraserTool" title="Eraser (E)">⌫</button>
+                <button class="tool-btn" id="fillTool" title="Fill (F)">◧</button>
+                <button class="tool-btn" id="lineTool" title="Line (L)">╱</button>
+                <button class="tool-btn" id="rectTool" title="Rectangle (R)">▢</button>
+                <div class="toolbar-divider"></div>
+                <button class="tool-btn" id="charPickerBtn" title="Character Picker">A</button>
+            </div>
+
+            <div class="status-bar">
+                <span id="cursorPos">0, 0</span>
+                <span id="canvasSize">80 × 40</span>
+                <span id="charCount">Chars: 0</span>
+            </div>
+        </main>
+    </div>
+
+    <!-- Export Modal -->
+    <div class="modal-overlay" id="exportModal">
+        <div class="modal">
+            <h2>Export ASCII Art</h2>
+            <pre id="exportPreview"></pre>
+            <div class="modal-actions">
+                <button class="btn" id="closeModal">Close</button>
+                <button class="btn" id="downloadBtn">Download .txt</button>
+                <button class="btn btn-primary" id="copyExportBtn">❐ Copy</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Character Picker Modal -->
+    <div class="modal-overlay" id="charPickerModal">
+        <div class="modal char-picker-modal">
+            <div class="char-picker-header">
+                <h2>Character Picker</h2>
+                <div class="char-picker-current">
+                    Current: <span id="currentCharDisplay">#</span>
+                </div>
+            </div>
+            <div class="char-picker-search">
+                <input type="text" id="charSearch" placeholder="Search or type character...">
+            </div>
+            <div class="char-picker-tabs">
+                <button class="tab-btn active" data-tab="basic">Basic</button>
+                <button class="tab-btn" data-tab="box">Box</button>
+                <button class="tab-btn" data-tab="blocks">Blocks</button>
+                <button class="tab-btn" data-tab="shapes">Shapes</button>
+                <button class="tab-btn" data-tab="arrows">Arrows</button>
+                <button class="tab-btn" data-tab="math">Math</button>
+                <button class="tab-btn" data-tab="misc">Misc</button>
+            </div>
+            <div class="char-picker-grid" id="charPickerGrid"></div>
+            <div class="modal-actions">
+                <button class="btn" id="closeCharPicker">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/app.js"></script>
+</body>
+</html>
