@@ -108,8 +108,10 @@ function initElements() {
     elements.fillTool = document.getElementById('fillTool');
     elements.lineTool = document.getElementById('lineTool');
     elements.rectTool = document.getElementById('rectTool');
+    elements.eyedropperTool = document.getElementById('eyedropperTool');
     elements.closeModal = document.getElementById('closeModal');
     elements.downloadBtn = document.getElementById('downloadBtn');
+    elements.downloadPngBtn = document.getElementById('downloadPngBtn');
     elements.copyExportBtn = document.getElementById('copyExportBtn');
     elements.autoConvertBtn = document.getElementById('autoConvertBtn');
     elements.convertNowBtn = document.getElementById('convertNowBtn');
@@ -127,6 +129,7 @@ function initElements() {
     elements.posYValue = document.getElementById('posYValue');
     elements.showGrid = document.getElementById('showGrid');
     elements.resetImageBtn = document.getElementById('resetImageBtn');
+    elements.removeImageBtn = document.getElementById('removeImageBtn');
     elements.gridOverlay = document.getElementById('gridOverlay');
     elements.gridOpacitySlider = document.getElementById('gridOpacitySlider');
     elements.gridOpacityValue = document.getElementById('gridOpacityValue');
@@ -210,33 +213,26 @@ function updateGrid() {
         elements.gridOverlay.classList.add('hidden');
         return;
     }
-    
+
     elements.gridOverlay.classList.remove('hidden');
-    
-    // Measure char dimensions
-    const testSpan = document.createElement('span');
-    testSpan.style.fontFamily = state.fontFamily;
-    testSpan.style.fontSize = state.fontSize + 'px';
-    testSpan.style.visibility = 'hidden';
-    testSpan.textContent = 'M';
-    document.body.appendChild(testSpan);
-    const charWidth = testSpan.offsetWidth;
-    document.body.removeChild(testSpan);
-    
-    const charHeight = state.fontSize;
+
+    // Get char dimensions from CSS variables (set in renderCanvas)
+    const charWidth = parseFloat(getComputedStyle(elements.asciiCanvas).getPropertyValue('--char-width')) || 7.2;
+    const charHeight = parseFloat(getComputedStyle(elements.asciiCanvas).getPropertyValue('--char-height')) || 12;
+
     const width = charWidth * state.cols;
     const height = charHeight * state.rows;
-    
+
     elements.gridOverlay.style.width = width + 'px';
     elements.gridOverlay.style.height = height + 'px';
-    
+
     // Get theme color
     const style = getComputedStyle(document.documentElement);
     const gridColor = style.getPropertyValue('--accent-primary').trim() || '#888';
-    
+
     const opacity = state.gridOpacity / 100;
     const thickness = state.gridThickness;
-    
+
     // Create grid with SVG
     elements.gridOverlay.innerHTML = `
         <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
@@ -246,6 +242,7 @@ function updateGrid() {
                 </pattern>
             </defs>
             <rect width="100%" height="100%" fill="url(#grid)" />
+            <rect x="${thickness/2}" y="${thickness/2}" width="${width - thickness}" height="${height - thickness}" fill="none" stroke="${gridColor}" stroke-width="${thickness}" opacity="${opacity}"/>
         </svg>
     `;
 }
@@ -270,6 +267,31 @@ function resetImagePosition() {
     elements.posYValue.textContent = '0';
     elements.scaleValue.textContent = '100%';
     updateImageTransform();
+}
+
+function removeImage() {
+    // Clear image
+    elements.backgroundImage.src = '';
+    elements.backgroundImage.style.display = 'none';
+
+    // Reset upload zone
+    elements.uploadZone.classList.remove('has-image');
+    elements.uploadZone.innerHTML = `
+        <div class="upload-icon">◻</div>
+        <div class="upload-text">Drop image or tap here</div>
+    `;
+
+    // Reset file input to allow re-uploading
+    elements.imageInput.value = '';
+
+    // Reset image state
+    state.imageLoaded = false;
+
+    // Reset image controls
+    resetImagePosition();
+    elements.opacitySlider.value = 30;
+    elements.opacityValue.textContent = '30%';
+    elements.backgroundImage.style.opacity = 0.3;
 }
 
 /* ============================================
@@ -366,6 +388,11 @@ function filterCharsBySearch(query) {
    ============================================ */
 
 function saveProject() {
+    // Ask for filename
+    const defaultName = 'ascii-art-project';
+    const filename = prompt('Enter project name (without extension):', defaultName);
+    if (!filename) return; // User cancelled
+
     const project = {
         version: 1,
         cols: state.cols,
@@ -383,16 +410,16 @@ function saveProject() {
         gridOpacity: state.gridOpacity,
         gridThickness: state.gridThickness
     };
-    
+
     const json = JSON.stringify(project, null, 2);
     const blob = new Blob([json], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
-    
+
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'ascii-art-project.ascii';
+    a.download = filename + '.ascii';
     a.click();
-    
+
     URL.revokeObjectURL(url);
 }
 
@@ -524,14 +551,29 @@ function initCanvas() {
 }
 
 function renderCanvas() {
+    // Measure character dimensions accurately
+    const testSpan = document.createElement('span');
+    testSpan.style.fontFamily = state.fontFamily;
+    testSpan.style.fontSize = state.fontSize + 'px';
+    testSpan.style.visibility = 'hidden';
+    testSpan.style.position = 'absolute';
+    testSpan.textContent = 'M';
+    document.body.appendChild(testSpan);
+    const charWidth = testSpan.offsetWidth;
+    const charHeight = testSpan.offsetHeight;
+    document.body.removeChild(testSpan);
+
+    // Set CSS variables for precise sizing
+    elements.asciiCanvas.style.setProperty('--char-width', charWidth + 'px');
+    elements.asciiCanvas.style.setProperty('--char-height', charHeight + 'px');
+
     elements.asciiCanvas.innerHTML = '';
     elements.asciiCanvas.style.fontSize = state.fontSize + 'px';
     elements.asciiCanvas.style.fontFamily = state.fontFamily;
-    
+
     for (let y = 0; y < state.rows; y++) {
         const row = document.createElement('div');
-        row.style.height = state.fontSize + 'px';
-        
+
         for (let x = 0; x < state.cols; x++) {
             const cell = document.createElement('span');
             cell.className = 'ascii-char' + (state.canvas[y][x] !== ' ' ? ' filled' : '');
@@ -548,17 +590,12 @@ function renderCanvas() {
 }
 
 function updateCanvasSize() {
-    const testSpan = document.createElement('span');
-    testSpan.style.fontFamily = state.fontFamily;
-    testSpan.style.fontSize = state.fontSize + 'px';
-    testSpan.style.visibility = 'hidden';
-    testSpan.textContent = 'M';
-    document.body.appendChild(testSpan);
-    const charWidth = testSpan.offsetWidth;
-    document.body.removeChild(testSpan);
+    // Get char dimensions from CSS variables (set in renderCanvas)
+    const charWidth = parseFloat(getComputedStyle(elements.asciiCanvas).getPropertyValue('--char-width')) || 7.2;
+    const charHeight = parseFloat(getComputedStyle(elements.asciiCanvas).getPropertyValue('--char-height')) || 12;
 
     const canvasWidth = charWidth * state.cols;
-    const canvasHeight = state.fontSize * state.rows;
+    const canvasHeight = charHeight * state.rows;
 
     elements.backgroundImage.style.width = canvasWidth + 'px';
     elements.backgroundImage.style.height = canvasHeight + 'px';
@@ -578,23 +615,68 @@ function setCell(x, y, char) {
 
 function getCellFromEvent(e) {
     const cell = e.target.closest('.ascii-char');
-    if (cell) {
+    if (cell && cell.dataset.x !== undefined && cell.dataset.y !== undefined) {
         return {
             x: parseInt(cell.dataset.x),
             y: parseInt(cell.dataset.y)
         };
     }
+
+    // Fallback: calculate position based on mouse coordinates
+    const canvasRect = elements.asciiCanvas.getBoundingClientRect();
+    if (e.clientX < canvasRect.left || e.clientX > canvasRect.right ||
+        e.clientY < canvasRect.top || e.clientY > canvasRect.bottom) {
+        return null;
+    }
+
+    // Get CSS variables for char dimensions
+    const charWidth = parseFloat(getComputedStyle(elements.asciiCanvas).getPropertyValue('--char-width')) || 7.2;
+    const charHeight = parseFloat(getComputedStyle(elements.asciiCanvas).getPropertyValue('--char-height')) || 12;
+
+    const x = Math.floor((e.clientX - canvasRect.left) / charWidth);
+    const y = Math.floor((e.clientY - canvasRect.top) / charHeight);
+
+    if (x >= 0 && x < state.cols && y >= 0 && y < state.rows) {
+        return { x, y };
+    }
+
     return null;
 }
 
 function getCellFromTouch(touch) {
     const element = document.elementFromPoint(touch.clientX, touch.clientY);
-    if (element && element.classList.contains('ascii-char')) {
+    if (!element) return null;
+
+    // Try to find ascii-char element
+    const cell = element.classList.contains('ascii-char')
+        ? element
+        : element.closest('.ascii-char');
+
+    if (cell && cell.dataset.x !== undefined && cell.dataset.y !== undefined) {
         return {
-            x: parseInt(element.dataset.x),
-            y: parseInt(element.dataset.y)
+            x: parseInt(cell.dataset.x),
+            y: parseInt(cell.dataset.y)
         };
     }
+
+    // Fallback: calculate position based on touch coordinates
+    const canvasRect = elements.asciiCanvas.getBoundingClientRect();
+    if (touch.clientX < canvasRect.left || touch.clientX > canvasRect.right ||
+        touch.clientY < canvasRect.top || touch.clientY > canvasRect.bottom) {
+        return null;
+    }
+
+    // Get CSS variables for char dimensions
+    const charWidth = parseFloat(getComputedStyle(elements.asciiCanvas).getPropertyValue('--char-width')) || 7.2;
+    const charHeight = parseFloat(getComputedStyle(elements.asciiCanvas).getPropertyValue('--char-height')) || 12;
+
+    const x = Math.floor((touch.clientX - canvasRect.left) / charWidth);
+    const y = Math.floor((touch.clientY - canvasRect.top) / charHeight);
+
+    if (x >= 0 && x < state.cols && y >= 0 && y < state.rows) {
+        return { x, y };
+    }
+
     return null;
 }
 
@@ -606,6 +688,63 @@ function updateStats() {
 
 function getAsciiText() {
     return state.canvas.map(row => row.join('')).join('\n');
+}
+
+function exportAsPng() {
+    // Ask for filename
+    const defaultName = 'ascii-art';
+    const filename = prompt('Enter filename (without extension):', defaultName);
+    if (!filename) return; // User cancelled
+
+    // Get the current theme colors
+    const style = getComputedStyle(document.documentElement);
+    const charColor = style.getPropertyValue('--char-color').trim();
+
+    // Measure character dimensions
+    const testCanvas = document.createElement('canvas');
+    const testCtx = testCanvas.getContext('2d');
+    testCtx.font = `${state.fontSize}px ${state.fontFamily}`;
+    const metrics = testCtx.measureText('M');
+    const charWidth = metrics.width;
+    const charHeight = state.fontSize * 1.2; // Add some line height
+
+    // Create final canvas
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+
+    // Add padding
+    const padding = 20;
+    canvas.width = (charWidth * state.cols) + (padding * 2);
+    canvas.height = (charHeight * state.rows) + (padding * 2);
+
+    // Leave background transparent (don't fill)
+
+    // Set text properties
+    ctx.font = `${state.fontSize}px ${state.fontFamily}`;
+    ctx.fillStyle = charColor;
+    ctx.textBaseline = 'top';
+
+    // Draw each character
+    for (let y = 0; y < state.rows; y++) {
+        for (let x = 0; x < state.cols; x++) {
+            const char = state.canvas[y][x];
+            if (char !== ' ') {
+                const posX = padding + (x * charWidth);
+                const posY = padding + (y * charHeight);
+                ctx.fillText(char, posX, posY);
+            }
+        }
+    }
+
+    // Convert to blob and download
+    canvas.toBlob((blob) => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename + '.png';
+        a.click();
+        URL.revokeObjectURL(url);
+    }, 'image/png');
 }
 
 /* ============================================
@@ -681,6 +820,32 @@ function drawRect(x0, y0, x1, y1) {
     }
 }
 
+function handleEyedropper(x, y) {
+    const char = state.canvas[y][x];
+    if (char && char !== ' ') {
+        state.currentChar = char;
+
+        // Update sidebar palette
+        document.querySelectorAll('.char-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.textContent === char);
+        });
+
+        // Update custom char input
+        elements.customChar.value = '';
+
+        // Update character picker display if open
+        updateCurrentCharDisplay();
+
+        // Show visual feedback
+        const original = elements.eyedropperTool.innerHTML;
+        elements.eyedropperTool.innerHTML = char;
+        setTimeout(() => elements.eyedropperTool.innerHTML = original, 500);
+
+        // Auto-switch back to draw tool
+        selectTool('draw');
+    }
+}
+
 function selectTool(tool) {
     state.currentTool = tool;
     document.querySelectorAll('.tool-btn').forEach(btn => btn.classList.remove('active'));
@@ -729,14 +894,44 @@ function convertImageToAscii() {
     img.onload = () => {
         // Guardar estado para undo
         saveState();
-        
+
+        // Get the actual dimensions of the ASCII canvas in pixels
+        const testSpan = document.createElement('span');
+        testSpan.style.fontFamily = state.fontFamily;
+        testSpan.style.fontSize = state.fontSize + 'px';
+        testSpan.style.visibility = 'hidden';
+        testSpan.textContent = 'M';
+        document.body.appendChild(testSpan);
+        const charWidth = testSpan.offsetWidth;
+        document.body.removeChild(testSpan);
+
+        const canvasPixelWidth = charWidth * state.cols;
+        const canvasPixelHeight = state.fontSize * state.rows;
+
+        // Create a larger temporary canvas to render the transformed image
+        const displayCanvas = document.createElement('canvas');
+        const displayCtx = displayCanvas.getContext('2d');
+        displayCanvas.width = canvasPixelWidth;
+        displayCanvas.height = canvasPixelHeight;
+
+        // Apply transformations like the CSS does
+        const scale = state.imgScale / 100;
+
+        // Clear and draw the image with transformations
+        displayCtx.save();
+        displayCtx.translate(state.imgPosX, state.imgPosY);
+        displayCtx.scale(scale, scale);
+        displayCtx.drawImage(img, 0, 0, canvasPixelWidth, canvasPixelHeight);
+        displayCtx.restore();
+
+        // Now create the sampling canvas
         const tempCanvas = document.createElement('canvas');
         const ctx = tempCanvas.getContext('2d');
-
         tempCanvas.width = state.cols;
         tempCanvas.height = state.rows;
 
-        ctx.drawImage(img, 0, 0, state.cols, state.rows);
+        // Sample down to grid resolution
+        ctx.drawImage(displayCanvas, 0, 0, canvasPixelWidth, canvasPixelHeight, 0, 0, state.cols, state.rows);
 
         const imageData = ctx.getImageData(0, 0, state.cols, state.rows);
         const pixels = imageData.data;
@@ -854,14 +1049,21 @@ function initEventListeners() {
     });
     
     elements.resetImageBtn.addEventListener('click', resetImagePosition);
+    elements.removeImageBtn.addEventListener('click', removeImage);
 
     // Canvas drawing
     elements.asciiCanvas.addEventListener('mousedown', (e) => {
         const pos = getCellFromEvent(e);
         if (!pos) return;
 
+        // Handle eyedropper tool
+        if (state.currentTool === 'eyedropper') {
+            handleEyedropper(pos.x, pos.y);
+            return;
+        }
+
         state.isDrawing = true;
-        
+
         // Guardar estado para undo
         saveState();
 
@@ -912,6 +1114,12 @@ function initEventListeners() {
         const pos = getCellFromTouch(touch);
         if (!pos) return;
 
+        // Handle eyedropper tool
+        if (state.currentTool === 'eyedropper') {
+            handleEyedropper(pos.x, pos.y);
+            return;
+        }
+
         state.isDrawing = true;
         saveState();
 
@@ -959,6 +1167,7 @@ function initEventListeners() {
     elements.fillTool.addEventListener('click', () => selectTool('fill'));
     elements.lineTool.addEventListener('click', () => selectTool('line'));
     elements.rectTool.addEventListener('click', () => selectTool('rect'));
+    elements.eyedropperTool.addEventListener('click', () => selectTool('eyedropper'));
 
     // Image upload
     elements.uploadZone.addEventListener('click', () => elements.imageInput.click());
@@ -1093,14 +1302,23 @@ function initEventListeners() {
     });
 
     elements.downloadBtn.addEventListener('click', () => {
+        // Ask for filename
+        const defaultName = 'ascii-art';
+        const filename = prompt('Enter filename (without extension):', defaultName);
+        if (!filename) return; // User cancelled
+
         const text = getAsciiText();
         const blob = new Blob([text], { type: 'text/plain' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'ascii-art.txt';
+        a.download = filename + '.txt';
         a.click();
         URL.revokeObjectURL(url);
+    });
+
+    elements.downloadPngBtn.addEventListener('click', () => {
+        exportAsPng();
     });
 
     // Keyboard shortcuts
@@ -1112,6 +1330,7 @@ function initEventListeners() {
         if (e.key === 'f') selectTool('fill');
         if (e.key === 'l') selectTool('line');
         if (e.key === 'r') selectTool('rect');
+        if (e.key === 'i') selectTool('eyedropper');
         if (e.ctrlKey && e.key === 'z') {
             e.preventDefault();
             undo();
