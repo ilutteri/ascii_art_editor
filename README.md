@@ -156,4 +156,4 @@ Un editor de arte ASCII moderno y completo que te permite crear arte ASCII de fo
 
 ---
 
-Desarrollado con ❤️ para artistas ASCII
+Desarrollado con ❤️ para M
